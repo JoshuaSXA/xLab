@@ -24,7 +24,6 @@ class TreeLSTMCell(nn.Module):
     def init_hash_tree(self, tree_dict, tree_vec):
         self.tree_dict = tree_dict
         self.tree_vec = tree_vec
-        print(len(tree_dict), len(tree_vec))
 
     #  当前节点的计算
     def node_forward(self, feature_vec, child_h, child_c):
@@ -92,7 +91,6 @@ class TreeLSTM(nn.Module):
         self.classifier = Classifier(cls_in_dim, cls_hidden_dim_1, cls_hidden_dim_2, cls_out_dim)
 
     def forward(self, tree_dict, tree_vec, root):
-        print('hahha')
         self.lstm_cell.init_hash_tree(tree_dict, tree_vec)
         lstm_output_h, lstm_output_c = self.lstm_cell(root)
         cls_output = self.classifier(lstm_output_h[0])

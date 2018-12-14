@@ -40,6 +40,11 @@ class Trainer(object):
         self._test_file_tag = None
         self._data_analysis = PathAnalysis(self._model_path)
         self._tree_lstm = TreeLSTM(EMBED_DIM, EMBED_DIM, CLS_HIDDEN_LAYER_DIM_1, CLS_HIDDEN_LAYER_DIM_2, CLS_OUT_DIM)
+        self._criterion = torch.nn.BCELoss()
+        if torch.cuda.is_available():
+            self._tree_lstm.cuda()
+            self._criterion.cuda()
+
 
     def load_data(self, file_type, train=True):
         if train:
@@ -69,6 +74,8 @@ class Trainer(object):
         file_tag = torch.from_numpy(file_tag)
         file_tag = file_tag.view(list(file_tag.size())[0], 1)
         print('Loaded %d %s files from %s, including %d positive samples and %d negative samples.' % (len(file_list), file_type, data_path, posSamp, negSamp))
+        if torch.cuda.is_available():
+            file_tag = file_tag.cuda()
         if train:
             self._train_file_list = file_list
             self._train_file_tag = file_tag
@@ -90,7 +97,6 @@ class Trainer(object):
 
 
     def train(self):
-        criterion = torch.nn.BCELoss()
         optimizer = torch.optim.Adam(self._tree_lstm.parameters(), lr=0.01)
         optimizer.zero_grad()
         total_loss = 0.0
@@ -101,18 +107,17 @@ class Trainer(object):
             _tree_vec = self._data_analysis.node_vec_dict
             _tree_root = self._data_analysis.tree_root
             output = self._tree_lstm(_tree_dict, _tree_vec, _tree_root)
-            loss = criterion(output[0], self._train_file_tag[i].float())
+            loss = self._criterion(output[0], self._train_file_tag[i].float())
             total_loss += loss.item()
             loss.backward()
             if (i + 1) % BATCH_SIZE == 0:
                 optimizer.step()
                 optimizer.zero_grad()
-                print(total_loss)
         return total_loss / len(self._train_file_list)
+
 
     def test(self):
         self._tree_lstm.eval()
-        criterion = torch.nn.BCELoss()
         with torch.no_grad():
             total_loss = 0.0
             predictions = torch.FloatTensor(torch.zeros(len(self._test_file_list), 1))
@@ -124,10 +129,11 @@ class Trainer(object):
                 output = self._tree_lstm(_tree_dict, _tree_vec, _tree_root)
                 #print(output, self._test_file_tag[i])
                 predictions[i] = output.ge(0.5).float()
-                loss = criterion(output[0], self._test_file_tag[i].float())
+                loss = self._criterion(output[0], self._test_file_tag[i].float())
                 total_loss += loss.item()
             accuracy = 1 - (predictions - self._test_file_tag.float()).abs_().sum() / len(self._test_file_tag)
         return total_loss / len(self._test_file_list), accuracy
+
 
 
 if __name__ == "__main__":
