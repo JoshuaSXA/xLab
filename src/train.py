@@ -3,9 +3,6 @@ import os
 import warnings
 import random
 
-
-
-
 import torch
 import numpy as np
 
@@ -41,9 +38,9 @@ class Trainer(object):
         self._data_analysis = PathAnalysis(self._model_path)
         self._tree_lstm = TreeLSTM(EMBED_DIM, EMBED_DIM, CLS_HIDDEN_LAYER_DIM_1, CLS_HIDDEN_LAYER_DIM_2, CLS_OUT_DIM)
         self._criterion = torch.nn.BCELoss()
-        if torch.cuda.is_available():
-            self._tree_lstm.cuda()
-            self._criterion.cuda()
+        # if torch.cuda.is_available():
+        #     self._tree_lstm.cuda()
+        #     self._criterion.cuda()
 
 
     def load_data(self, file_type, train=True):
@@ -74,8 +71,8 @@ class Trainer(object):
         file_tag = torch.from_numpy(file_tag)
         file_tag = file_tag.view(list(file_tag.size())[0], 1)
         print('Loaded %d %s files from %s, including %d positive samples and %d negative samples.' % (len(file_list), file_type, data_path, posSamp, negSamp))
-        if torch.cuda.is_available():
-            file_tag = file_tag.cuda()
+        # if torch.cuda.is_available():
+        #     file_tag = file_tag.cuda()
         if train:
             self._train_file_list = file_list
             self._train_file_tag = file_tag
@@ -86,7 +83,6 @@ class Trainer(object):
 
     def data_shuffle(self):
         self._train_file_tag = self._train_file_tag.view(list(self._train_file_tag.size())[0]).numpy().tolist()
-        print(self._train_file_tag)
         randnum = random.randint(0, 100)
         random.seed(randnum)
         random.shuffle(self._train_file_list)
@@ -97,6 +93,7 @@ class Trainer(object):
 
 
     def train(self):
+
         optimizer = torch.optim.Adam(self._tree_lstm.parameters(), lr=0.01)
         optimizer.zero_grad()
         total_loss = 0.0
@@ -108,6 +105,7 @@ class Trainer(object):
             _tree_root = self._data_analysis.tree_root
             output = self._tree_lstm(_tree_dict, _tree_vec, _tree_root)
             loss = self._criterion(output[0], self._train_file_tag[i].float())
+            print('Prediction result is %f while the true label is %d' % (output, self._train_file_tag[i]))
             total_loss += loss.item()
             loss.backward()
             if (i + 1) % BATCH_SIZE == 0:
@@ -127,7 +125,6 @@ class Trainer(object):
                 _tree_vec = self._data_analysis.node_vec_dict
                 _tree_root = self._data_analysis.tree_root
                 output = self._tree_lstm(_tree_dict, _tree_vec, _tree_root)
-                #print(output, self._test_file_tag[i])
                 predictions[i] = output.ge(0.5).float()
                 loss = self._criterion(output[0], self._test_file_tag[i].float())
                 total_loss += loss.item()
@@ -143,11 +140,12 @@ if __name__ == "__main__":
     train = Trainer(train_data_path, test_data_path, model_path)
     train.load_data('.txt')
     train.load_data('.txt', False)
-    for i in range(TRAIN_EPOCH):
-        train_loss = train.train()
-        test_loss, accuracy = train.test()
-        print("EPOCH %d: train loss is %f, test loss is %f, test accuracy is %f" % ((i + 1), train_loss, test_loss, accuracy))
-        torch.save(train._tree_lstm.state_dict(), os.path.join('..', 'data', 'models', 'tree_lstm_model', 'model_epoch_%d.pkl' % (i + 1)))
-
+    train.train()
+    # for i in range(TRAIN_EPOCH):
+    #     train_loss = train.train()
+    #     test_loss, accuracy = train.test()
+    #     print("EPOCH %d: train loss is %f, test loss is %f, test accuracy is %f" % ((i + 1), train_loss, test_loss, accuracy))
+    #     torch.save(train._tree_lstm.state_dict(), os.path.join('..', 'data', 'models', 'tree_lstm_model', 'model_epoch_%d.pkl' % (i + 1)))
+    #
 
 

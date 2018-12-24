@@ -67,6 +67,8 @@ class PathAnalysis(object):
                         attention = attention_weights[i].view(1, 1)
                         tmp_feature = embed_vec.mm(attention)
                         feature_vec = feature_vec + tmp_feature
+                if torch.sum(feature_vec) != 0.0:
+                    feature_vec = (feature_vec - torch.min(feature_vec)) / (torch.max(feature_vec) - torch.min(feature_vec))
                 self._node_vec_dict[node] = feature_vec
         except:
             raise ValueError
